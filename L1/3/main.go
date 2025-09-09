@@ -2,43 +2,49 @@ package main
 
 import (
 	"fmt"
-	"math"
 	"math/rand"
-	"sync"
 	"time"
 )
 
-func Generator() <-chan int {
-	resultCh := make(chan int)
+/*
+Реализовать постоянную запись данных в канал (в главной горутине).
+Реализовать набор из N воркеров, которые читают данные из этого канала и выводят их в stdout.
+Программа должна принимать параметром количество воркеров и при старте создавать указанное
+число горутин-воркеров.
+*/
 
-	go func() {
-		defer close(resultCh)
-
-		for {
-			resultCh <- rand.Intn(math.MaxInt)
-			time.Sleep(time.Duration(rand.Intn(100)) * time.Millisecond)
-		}
-	}()
-
-	return resultCh
+func Generator(inChan chan<- int) {
+	for {
+		inChan <- rand.Intn(1000)
+		time.Sleep(time.Duration(rand.Intn(100)) * time.Millisecond)
+	}
 }
 
 func StartWorkers(inputCh <-chan int, countN int) {
 	for i := 0; i < countN; i++ {
 		go func(workerNum int) {
-			for {
-				value := <-inputCh
-				fmt.Printf("Worker %v recieve value:%v", workerNum, value)
+			for value := range inputCh {
+				fmt.Printf("Worker %v received value:%v\n", workerNum, value)
 			}
 		}(i)
 	}
 }
 
 func main() {
-	fmt.Println("Starting programm")
-	workersCount := 10
-	wg := &sync.WaitGroup{}
-	wg.Add(workersCount)
-	StartWorkers(Generator(), workersCount)
-	wg.Wait()
+	fmt.Println("Starting program")
+
+	var workersCount int
+	fmt.Print("Enter workers count: ")
+	if _, err := fmt.Scan(&workersCount); err != nil || workersCount <= 0 {
+		fmt.Println("invalid workers count")
+		return
+	}
+
+	fmt.Printf("starting program with %d workers\n", workersCount)
+
+	in := make(chan int)
+
+	StartWorkers(in, workersCount)
+
+	Generator(in)
 }
